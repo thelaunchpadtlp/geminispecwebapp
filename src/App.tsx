@@ -1,3 +1,4 @@
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import Hero from './components/sections/Hero'
@@ -6,8 +7,9 @@ import HMI from './components/sections/HMI'
 import LLMOS from './components/sections/LLMOS'
 import MCP from './components/sections/MCP'
 import VPN from './components/sections/VPN'
+import GodApp from './components/godapp/GodApp'
 
-export default function App() {
+function MainApp() {
   return (
     <>
       {/* Holographic background grid */}
@@ -31,5 +33,17 @@ export default function App() {
 
       <Footer />
     </>
+  )
+}
+
+export default function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/godapp" element={<GodApp />} />
+        <Route path="/godapp/*" element={<GodApp />} />
+      </Routes>
+    </HashRouter>
   )
 }
