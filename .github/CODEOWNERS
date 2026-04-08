@@ -1,0 +1,35 @@
+# CODEOWNERS — geminispecwebapp
+# Define quién debe revisar cambios en partes específicas del proyecto.
+# GitHub asigna automáticamente estos revisores en los Pull Requests.
+# Formato: <patrón de archivo> <@usuario o @org/equipo>
+
+# ─── Owner global (thelaunchpadtlp revisa todo) ─────────────
+*                           @thelaunchpadtlp
+
+# ─── Archivos críticos de configuración ─────────────────────
+# Cambios en estos archivos requieren revisión del owner
+package.json                @thelaunchpadtlp
+vite.config.ts              @thelaunchpadtlp
+tsconfig.json               @thelaunchpadtlp
+tailwind.config.js          @thelaunchpadtlp
+Dockerfile                  @thelaunchpadtlp
+docker-compose.yml          @thelaunchpadtlp
+firebase.json               @thelaunchpadtlp
+.firebaserc                 @thelaunchpadtlp
+
+# ─── Workflows de CI/CD ─────────────────────────────────────
+.github/workflows/          @thelaunchpadtlp
+.github/dependabot.yml      @thelaunchpadtlp
+.github/CODEOWNERS          @thelaunchpadtlp
+
+# ─── Documentación de gobernanza ────────────────────────────
+SECURITY.md                 @thelaunchpadtlp
+WORKFLOW.md                 @thelaunchpadtlp
+QA.md                       @thelaunchpadtlp
+CONTRIBUTING.md             @thelaunchpadtlp
+
+# ─── GodApp (centro de comando) ─────────────────────────────
+src/components/godapp/      @thelaunchpadtlp
+
+# ─── Estilos globales y design tokens ───────────────────────
+src/styles/globals.css      @thelaunchpadtlp

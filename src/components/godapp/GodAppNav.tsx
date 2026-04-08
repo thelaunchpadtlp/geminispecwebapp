@@ -1,4 +1,4 @@
-import { Target, Users, GitBranch, Workflow, ShieldCheck, KeyRound, Monitor, ScrollText } from 'lucide-react'
+import { Target, Users, GitBranch, Workflow, ShieldCheck, KeyRound, Monitor, ScrollText, RefreshCw } from 'lucide-react'
 import type { GodTab } from './GodApp'
 
 const TABS: { id: GodTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -7,6 +7,7 @@ const TABS: { id: GodTab; label: string; icon: React.ComponentType<{ className?:
   { id: 'pipeline',  label: 'Pipeline & Estado',  icon: GitBranch },
   { id: 'workflow',  label: 'Workflow & Forks',   icon: Workflow },
   { id: 'qa',        label: 'QA & Testing',       icon: ShieldCheck },
+  { id: 'sync',      label: 'Auto-Sync',          icon: RefreshCw },
   { id: 'access',    label: 'Accesos & Claves',   icon: KeyRound },
   { id: 'preview',   label: 'IDE Preview',        icon: Monitor },
   { id: 'changelog', label: 'Changelog',          icon: ScrollText },

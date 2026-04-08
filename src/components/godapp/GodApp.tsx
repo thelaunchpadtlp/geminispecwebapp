@@ -8,8 +8,9 @@ import TabQA from './tabs/TabQA'
 import TabAccess from './tabs/TabAccess'
 import TabPreview from './tabs/TabPreview'
 import TabChangelog from './tabs/TabChangelog'
+import TabSync from './tabs/TabSync'
 
-export type GodTab = 'mission' | 'org' | 'pipeline' | 'workflow' | 'qa' | 'access' | 'preview' | 'changelog'
+export type GodTab = 'mission' | 'org' | 'pipeline' | 'workflow' | 'qa' | 'access' | 'preview' | 'changelog' | 'sync'
 
 const TAB_COMPONENTS: Record<GodTab, React.ComponentType> = {
   mission:   TabMission,
@@ -20,6 +21,7 @@ const TAB_COMPONENTS: Record<GodTab, React.ComponentType> = {
   access:    TabAccess,
   preview:   TabPreview,
   changelog: TabChangelog,
+  sync:      TabSync,
 }
 
 export default function GodApp() {
@@ -39,7 +41,7 @@ export default function GodApp() {
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
           <span className="text-xs text-green-400">LIVE</span>
           <span className="text-slate-600 mx-2">|</span>
-          <span className="text-xs text-slate-500">v1.1.0 · branch: main</span>
+          <span className="text-xs text-slate-500">v1.2.0 · branch: main</span>
         </div>
       </div>
 
