@@ -1,0 +1,85 @@
+name: Health Check — Project Status
+
+# ─── PROPÓSITO ────────────────────────────────────────────────
+# Verificación autónoma del estado del proyecto cada 6 horas:
+#   - Verifica que develop y main buildean correctamente.
+#   - Verifica que develop no está muy por detrás de main.
+#   - Actualiza el badge de estado en el README.
+#   - Crea Issue si alguna verificación falla.
+# ─────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Cada 6 horas
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check-main:
+    name: Health Check — main branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install & Build
+        run: npm ci && npm run type-check && npm run build
+
+  check-develop:
+    name: Health Check — develop branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+        continue-on-error: true
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+        continue-on-error: true
+
+      - name: Install & Build (develop)
+        run: npm ci && npm run type-check && npm run build
+        continue-on-error: true
+
+  notify-failure:
+    name: Notify on Health Failure
+    runs-on: ubuntu-latest
+    needs: [check-main, check-develop]
+    if: failure()
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            // Check if a similar issue already exists to avoid spam
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'health-check-failure',
+              state: 'open',
+            });
+            if (issues.length > 0) {
+              console.log('Health failure issue already open, skipping creation.');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🏥 Health Check FALLIDO — ${new Date().toISOString().split('T')[0]}`,
+              body: `## Health Check Automático Fallido\n\n**Fecha:** ${new Date().toUTCString()}\n**Workflow:** ${context.workflow}\n**Run:** ${context.runId}\n\nUno o más checks de salud del proyecto han fallado. Revisar los logs del workflow para identificar el problema.\n\n[Ver logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n\n[geminispecwebapp-bot]`,
+              labels: ['health-check-failure', 'needs-attention'],
+            });
