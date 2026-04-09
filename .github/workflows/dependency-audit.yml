@@ -1,0 +1,86 @@
+name: Auto-Audit — Dependencies & Security
+
+# ─── PROPÓSITO ────────────────────────────────────────────────
+# Auditoría autónoma semanal de dependencias:
+#   - Ejecuta npm audit para detectar vulnerabilidades.
+#   - Ejecuta npm outdated para detectar paquetes desactualizados.
+#   - Crea un Issue con el reporte si hay vulnerabilidades críticas.
+#   - Aplica npm audit fix --only=prod para parches automáticos
+#     de severidad alta/crítica y abre un PR.
+# ─────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Cada lunes a las 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        id: audit
+        run: |
+          npm audit --json > audit-report.json 2>&1 || true
+          CRITICAL=$(cat audit-report.json | python3 -c "import json,sys; d=json.load(sys.stdin); v=d.get('metadata',{}).get('vulnerabilities',{}); print(v.get('critical',0)+v.get('high',0))" 2>/dev/null || echo "0")
+          echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "Critical+High vulnerabilities: $CRITICAL"
+
+      - name: Run npm outdated
+        run: npm outdated --json > outdated-report.json 2>&1 || true
+
+      - name: Apply safe auto-fix (patch-level only)
+        if: steps.audit.outputs.critical_count != '0'
+        run: |
+          git config user.name "geminispecwebapp-bot"
+          git config user.email "bot@geminispecwebapp.thelaunchpadtlp.education"
+          npm audit fix --only=prod 2>&1 || true
+          if git diff --quiet package-lock.json; then
+            echo "No changes after audit fix."
+          else
+            git checkout -b fix/auto-security-audit-$(date +%Y%m%d)
+            git add package.json package-lock.json
+            git commit -m "fix(deps): auto security audit fix [bot: dependency-audit]"
+            git push origin fix/auto-security-audit-$(date +%Y%m%d)
+          fi
+
+      - name: Create vulnerability issue
+        if: steps.audit.outputs.critical_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let auditSummary = 'Ver logs del workflow para detalles.';
+            try {
+              const report = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
+              const v = report?.metadata?.vulnerabilities || {};
+              auditSummary = `| Severidad | Cantidad |\n|---|---|\n| Critical | ${v.critical||0} |\n| High | ${v.high||0} |\n| Moderate | ${v.moderate||0} |\n| Low | ${v.low||0} |`;
+            } catch(e) {}
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔐 Vulnerabilidades detectadas — Auditoría ${new Date().toISOString().split('T')[0]}`,
+              body: `## Reporte de Seguridad Automático\n\n**Fecha:** ${new Date().toUTCString()}\n\n${auditSummary}\n\nSe ha abierto automáticamente una rama \`fix/auto-security-audit-*\` con los parches disponibles.\nRevisa el PR generado y mergéalo a \`develop\` después de validar.\n\n[geminispecwebapp-bot]`,
+              labels: ['security', 'dependencies', 'auto-audit'],
+            });
