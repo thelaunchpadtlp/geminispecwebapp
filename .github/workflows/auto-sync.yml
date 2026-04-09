@@ -1,0 +1,139 @@
+name: Auto-Sync — develop → main (Scheduled)
+
+# ─── PROPÓSITO ────────────────────────────────────────────────
+# Este workflow sincroniza develop → main de forma autónoma
+# SOLO si se cumplen TODAS las condiciones de seguridad:
+#   1. El build de CI pasa en develop.
+#   2. No hay conflictos de merge.
+#   3. Hay commits nuevos en develop que no están en main.
+# Si alguna condición falla, el workflow ABORTA y crea un Issue
+# automático para notificar al equipo.
+# ─────────────────────────────────────────────────────────────
+
+on:
+  # Ejecutar cada día a las 03:00 UTC (fuera de horario de trabajo)
+  schedule:
+    - cron: '0 3 * * *'
+  # Permitir ejecución manual desde GitHub UI
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Forzar sync aunque no haya commits nuevos'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  safety-check:
+    name: Safety Check — develop
+    runs-on: ubuntu-latest
+    outputs:
+      has_new_commits: ${{ steps.check.outputs.has_new_commits }}
+      can_merge: ${{ steps.check.outputs.can_merge }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new commits in develop vs main
+        id: check
+        run: |
+          git fetch origin main develop
+          AHEAD=$(git rev-list origin/main..origin/develop --count)
+          echo "Commits ahead of main: $AHEAD"
+          if [ "$AHEAD" -gt "0" ] || [ "${{ inputs.force_sync }}" = "true" ]; then
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_commits=false" >> $GITHUB_OUTPUT
+          fi
+          # Check if merge would conflict
+          git checkout -b test-merge-check origin/main
+          if git merge --no-commit --no-ff origin/develop; then
+            echo "can_merge=true" >> $GITHUB_OUTPUT
+            git merge --abort 2>/dev/null || true
+          else
+            echo "can_merge=false" >> $GITHUB_OUTPUT
+            git merge --abort 2>/dev/null || true
+          fi
+
+  build-develop:
+    name: Build Check — develop branch
+    runs-on: ubuntu-latest
+    needs: safety-check
+    if: needs.safety-check.outputs.has_new_commits == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install & Build
+        run: npm ci && npm run type-check && npm run build
+
+  auto-merge:
+    name: Auto-Merge develop → main
+    runs-on: ubuntu-latest
+    needs: [safety-check, build-develop]
+    if: |
+      needs.safety-check.outputs.has_new_commits == 'true' &&
+      needs.safety-check.outputs.can_merge == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "geminispecwebapp-bot"
+          git config user.email "bot@geminispecwebapp.thelaunchpadtlp.education"
+
+      - name: Merge develop into main
+        run: |
+          git fetch origin main develop
+          git checkout main
+          git merge --no-ff origin/develop -m "chore(auto-sync): merge develop → main [bot: auto-sync | $(date -u '+%Y-%m-%d %H:%M UTC')]"
+          git push origin main
+
+      - name: Create sync summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: commits } = await github.rest.repos.compareCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base: 'main',
+              head: 'develop',
+            });
+            console.log(`Auto-sync completed. Merged ${commits.commits?.length || 0} commits.`);
+
+  notify-conflict:
+    name: Notify Conflict — Create Issue
+    runs-on: ubuntu-latest
+    needs: safety-check
+    if: |
+      needs.safety-check.outputs.has_new_commits == 'true' &&
+      needs.safety-check.outputs.can_merge == 'false'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Auto-Sync BLOQUEADO: Conflicto de merge develop → main',
+              body: `## Auto-Sync Bloqueado\n\n**Fecha:** ${new Date().toUTCString()}\n\n**Motivo:** El workflow de sincronización automática detectó conflictos de merge entre \`develop\` y \`main\` y abortó para proteger la integridad del código.\n\n**Acción requerida:**\n1. Clonar el repo localmente.\n2. Ejecutar \`git checkout develop && git merge main\`.\n3. Resolver los conflictos manualmente.\n4. Hacer push a \`develop\`.\n5. El próximo ciclo de auto-sync (03:00 UTC) intentará nuevamente.\n\n**Labels:** \`auto-sync\`, \`conflict\`, \`needs-attention\``,
+              labels: ['auto-sync', 'conflict', 'needs-attention'],
+            });
