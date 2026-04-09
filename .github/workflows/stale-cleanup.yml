@@ -1,0 +1,69 @@
+name: Auto-Cleanup — Stale Branches & PRs
+
+# ─── PROPÓSITO ────────────────────────────────────────────────
+# Limpieza autónoma semanal:
+#   - Marca como "stale" los PRs sin actividad por 14 días.
+#   - Cierra PRs stale sin actividad por 7 días adicionales.
+#   - Elimina ramas feature/fix/agent ya mergeadas.
+# Las ramas main, develop y hotfix/* NUNCA son tocadas.
+# ─────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Cada domingo a las 04:00 UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale-prs:
+    name: Mark & Close Stale PRs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-pr-message: |
+            ⏰ **Auto-Stale Notice:** Este PR no ha tenido actividad en 14 días.
+            Será cerrado automáticamente en 7 días si no hay actividad.
+            Si sigue siendo relevante, agrega un comentario o push para reactivarlo.
+            [geminispecwebapp-bot]
+          close-pr-message: |
+            🤖 **Auto-Close:** Este PR fue cerrado automáticamente por inactividad (21 días).
+            La rama puede ser restaurada si es necesario.
+            [geminispecwebapp-bot]
+          days-before-pr-stale: 14
+          days-before-pr-close: 7
+          stale-pr-label: 'stale'
+          exempt-pr-labels: 'pinned,security,hotfix,do-not-close'
+          exempt-all-pr-milestones: true
+
+  cleanup-merged-branches:
+    name: Delete Merged Branches
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete merged feature/fix/agent branches
+        run: |
+          git fetch --prune origin
+          # Get branches merged into main or develop
+          MERGED=$(git branch -r --merged origin/main | grep -E 'origin/(feature|fix|agent)/' | sed 's|origin/||')
+          if [ -z "$MERGED" ]; then
+            echo "No merged branches to clean up."
+            exit 0
+          fi
+          echo "Branches to delete:"
+          echo "$MERGED"
+          for branch in $MERGED; do
+            echo "Deleting: $branch"
+            git push origin --delete "$branch" || echo "Could not delete $branch (may already be gone)"
+          done
+          echo "Cleanup complete."
