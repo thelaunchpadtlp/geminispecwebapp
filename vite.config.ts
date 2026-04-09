@@ -7,4 +7,13 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
+  preview: {
+    allowedHosts: 'all',
+    host: '0.0.0.0',
+    port: 4174,
+  },
+  server: {
+    allowedHosts: 'all',
+    host: '0.0.0.0',
+  },
 })
