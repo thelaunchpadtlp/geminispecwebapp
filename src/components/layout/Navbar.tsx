@@ -1,4 +1,5 @@
 import { Cpu } from 'lucide-react'
+import DevPortalButton from '../auth/DevPortalButton'
 
 const navItems = [
   { label: 'Arquitectura', href: '#arquitectura', color: 'hover:text-[#00f0ff]' },
@@ -20,7 +21,8 @@ export default function Navbar() {
             AgenticOS <span className="text-white/40">2050</span>
           </span>
         </a>
-        <ul className="flex gap-5 text-sm font-medium text-slate-300" role="menubar">
+
+        <ul className="flex gap-5 text-sm font-medium text-slate-300 hidden md:flex" role="menubar">
           {navItems.map(item => (
             <li key={item.href} role="none">
               <a
@@ -33,6 +35,9 @@ export default function Navbar() {
             </li>
           ))}
         </ul>
+
+        {/* Dev Portal — always visible for all developers */}
+        <DevPortalButton />
       </div>
     </nav>
   )

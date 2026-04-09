@@ -1,4 +1,5 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import Hero from './components/sections/Hero'
@@ -38,12 +39,14 @@ function MainApp() {
 
 export default function App() {
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<MainApp />} />
-        <Route path="/godapp" element={<GodApp />} />
-        <Route path="/godapp/*" element={<GodApp />} />
-      </Routes>
-    </HashRouter>
+    <AuthProvider>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<MainApp />} />
+          <Route path="/godapp" element={<GodApp />} />
+          <Route path="/godapp/*" element={<GodApp />} />
+        </Routes>
+      </HashRouter>
+    </AuthProvider>
   )
 }

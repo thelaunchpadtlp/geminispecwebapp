@@ -48,6 +48,7 @@ export function GodTable({ headers, rows }: { headers: string[]; rows: (string |
 
 const badgeColors = {
   blue:   'bg-[#00f0ff]/10 text-[#00f0ff] border-[#00f0ff]/30',
+  cyan:   'bg-[#00f0ff]/10 text-[#00f0ff] border-[#00f0ff]/30',
   purple: 'bg-[#8a2be2]/10 text-[#8a2be2] border-[#8a2be2]/30',
   pink:   'bg-[#ff00ff]/10 text-[#ff00ff] border-[#ff00ff]/30',
   green:  'bg-green-500/10 text-green-400 border-green-500/30',
